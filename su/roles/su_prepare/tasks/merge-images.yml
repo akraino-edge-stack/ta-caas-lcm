@@ -19,4 +19,4 @@
 
 # Tags may different between images. So we get tag for each image in script.
 - name: Merge new images to original registry
-  shell: /usr/libexec/nokia/merge_image.sh --from-registry={{ caas.update_registry_url }}:{{ caas.update_registry_port }} --to-registry={{ caas.registry_url }}:{{ caas.registry_port }} "{{ ret_repo_in_new_registry.stdout }}"
+  shell: {{ caas.libexec_dir }}/merge_image.sh --from-registry={{ caas.update_registry_url }}:{{ caas.update_registry_port }} --to-registry={{ caas.registry_url }}:{{ caas.registry_port }} "{{ ret_repo_in_new_registry.stdout }}"
