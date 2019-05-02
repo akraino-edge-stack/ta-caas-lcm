@@ -1,0 +1,29 @@
+---
+# Copyright 2019 Nokia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: list application packages
+  user: cloudadmin
+  hosts: "{{ groups.caas_master[0] | default('nowhere') }}"
+  connection: local
+  gather_facts: "False"
+  tasks:
+    - name: list application packages
+      shell: HELM_HOST={{ caas.tiller_ip }}:{{ caas.tiller_port }} helm search | tr '\n' ',' | tr '\t' ' '
+      register: list_application_packages_result
+
+    - name: create a json from list of application packages
+      template:
+        src: "return_value_list_application_packages.j2"
+        dest: "/tmp/return_value_list_application_packages.json"

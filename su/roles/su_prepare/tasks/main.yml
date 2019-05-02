@@ -1,0 +1,154 @@
+---
+# Copyright 2019 Nokia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- set_fact:
+    start_time: "{{ lookup('pipe', 'date +%Y%m%d-%H:%M:%S') }}"
+
+- file:
+    path: "/var/log/sw_package_load.log"
+    state: absent
+  become: true
+
+
+- lineinfile:
+    dest: "/var/log/sw_package_load.log"
+    create: yes
+    line: "start_time: {{ start_time }}"
+  become: true
+
+- block:
+    - name: Compose the device path of swift volume on BareMetal
+      set_fact:
+        swift_dev: "{{ swift_image_path }}"
+
+    - name: Run what_is_the_filesystem.yml
+      include_role:
+        name: common_tasks
+        tasks_from: what_is_the_filesystem.yml
+      vars:
+        device: "{{swift_dev}}"
+
+    - name: Mount the device
+      mount:
+        name: /srv/node/swift-update/
+        src: "{{swift_dev}}"
+        fstype: "{{ filesystem_type.stdout | lower | default('ext4') }}"
+        state: mounted
+      become: true
+  when: swift_image_path is defined and swift_image_path != ""
+
+- name: Prepare mount dir
+  file:
+    path: /srv/node/swift-update/
+    state: directory
+    mode: 0755
+    owner: 146
+    group: 146
+    recurse: yes
+  become: true
+
+- block:
+    - include: tasks/start_vnfc.yml
+      vars:
+        vnfcs:
+          - swift_update
+          - swift_update_service
+          - docker-registry-update
+          - update_registry_service
+
+    - include: tasks/wait_pod_start.yml
+      vars:
+        name: swift-update
+        ccount: 1
+
+    - name: wait for container service - swift-update
+      wait_for:
+        host: "{{ groups.caas_master[0] }}"
+        port: "{{ caas.update_swift_port }}"
+        state: started
+        timeout: 300
+
+    - include: tasks/wait_pod_start.yml
+      vars:
+        name: registry-update
+        ccount: 1
+
+    - name: wait for registry-update kubernetes service to start
+      wait_for:
+        host: "{{ caas.update_registry_url }}"
+        port: "{{ caas.update_registry_port }}"
+        state: started
+        timeout: 60
+
+
+    - name: wait for swift-update kubernetes service to start
+      wait_for:
+        host: "{{ caas.swift_update_url }}"
+        port: "{{ caas.update_swift_port }}"
+        state: started
+        timeout: 60
+
+    - include: merge-charts.yml
+    - include: merge-images.yml
+
+  rescue:
+    - debug:
+        msg: Something went wrong during merge.
+
+  always:
+    - name: clean after charts upload
+      file:
+        state: absent
+        path: /tmp/su_chart
+
+    - name: Delete the registry and swift for su
+      shell: kubectl delete -f /var/lib/caas/manifests/{{item}}
+      with_items:
+        - update_registry_service.yml
+        - docker-registry-update.yml
+        - swift_update_service.yml
+        - swift_update.yml
+
+    - name: Wait for registry and swift deleted
+      shell: kubectl get pods --all-namespaces | grep -c {{item}}
+      register: ret_rc
+      until: ret_rc.stdout == "0"
+      failed_when: ret_rc.stdout == ""
+      retries: 60
+      delay: 5
+      with_items:
+        - swift-update
+        - registry-update
+
+    - name: Umount the device of the new swift volume
+      mount:
+        name: /srv/node/swift-update/
+        src: "{{swift_dev}}"
+        state: unmounted
+      become: true
+
+    - name: Make sure the fstab entry is removed
+      mount:
+        name: /srv/node/swift-update/
+        src: "{{swift_dev}}"
+        state: absent
+      become: true
+
+    - lineinfile:
+        dest: "/var/log/sw_package_load.log"
+        state: present
+        line: "end_time: {{ lookup('pipe', 'date +%Y%m%d-%H:%M:%S') }}"
+      become: true
+

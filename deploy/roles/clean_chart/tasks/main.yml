@@ -1,0 +1,59 @@
+---
+# Copyright 2019 Nokia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: fetch files from server which contains the necessary variables
+  fetch: src={{ item }} dest=/tmp/ flat=yes
+  with_items:
+    - /etc/swift/usr/admin/admin.yml
+
+- name: register infos for swift_auth
+  set_fact:
+    swift_credential: "{{ lookup('file', swift_admin_path + '/admin.yml') | from_yaml }}"
+
+- name: authenticate on swift
+  uri:
+    url: "{{ caas.swift }}/auth/v1.0"
+    headers:
+      X_Auth_User: admin:admin
+      X_Auth_Key: "{{ swift_credential.swift_password }}"
+  register: auth
+
+- name: clean charts list file if exists
+  file:
+    path: /tmp/charts_list
+    state: absent
+
+- name: get current charts list
+  shell: "curl -H'X_Auth_Token: {{ auth.x_auth_token }}' {{ caas.swift }}/v1.0/AUTH_admin/packages > /tmp/charts_list"
+
+- name: chart_pattern
+  set_fact:
+    chart_pattern: "{{ chart_name | replace('*', '.*') }}"
+
+- name: version_pattern
+  set_fact:
+    version_pattern: "{{ chart_version | replace('*', '[0-9]+') }}"
+
+- name: search
+  shell: cat /tmp/charts_list | egrep "charts/{{ chart_pattern }}-[0-9]+\.[0-9]+\.[0-9]+" | egrep "{{ version_pattern }}\.tgz"
+  register: chart_matched
+
+- name: delete the chart from swift
+  shell: "curl -XDELETE {{ caas.chart_repo }}/{{ item }}"
+  with_items: "{{ chart_matched.stdout_lines }}"
+
+- name: helm repo update
+  shell: helm repo update default {{ caas.chart_repo }}/charts
+

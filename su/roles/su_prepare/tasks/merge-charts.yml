@@ -1,0 +1,96 @@
+---
+# Copyright 2019 Nokia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: fetch files from server which contains the necessary variables
+  fetch:
+    src: /etc/swift/usr/admin/admin.yml
+    dest: /tmp/
+    flat: yes
+
+- name: register infos for swift_auth
+  set_fact:
+    swift_credential: "{{ lookup('file', '/tmp/admin.yml') | from_yaml }}"
+
+- name: pause to wait for swift-update to be ready
+  pause:
+    minutes: 1
+
+- name: authenticate on swift-upgrade
+  uri:
+    url: "{{ caas.swift_update }}/auth/v1.0"
+    headers:
+      X_Auth_User: admin:admin
+      X_Auth_Key: "{{ swift_credential.swift_password }}"
+  register: auth
+
+- name: get packages
+  uri:
+    url: "{{ caas.swift_update }}/v1.0/AUTH_admin/packages"
+    return_content: yes
+    headers:
+      X_Auth_Token: "{{ auth.x_auth_token }}"
+  register: packages
+
+- name: get charts from packages
+  set_fact:
+    charts: "{{ (packages.get('content','')|trim).split('\n') | select('search', 'charts.+\\.tgz') | list }}"
+
+- name: get value files from packages
+  set_fact:
+    value_files: "{{ (packages.get('content','')|trim).split('\n') | select('search', 'releases.+\\.yaml') | list }}"
+  ignore_errors: yes
+
+- name: create chart directory
+  file:
+    name: /tmp/su_chart
+    state: directory
+
+- name: download charts
+  args:
+    chdir: /tmp/su_chart
+  command: "curl -O -XGET -H'X-Auth-Token: {{ auth.x_auth_token }}' {{ caas.swift_update }}/v1.0/AUTH_admin/packages/{{ item }}"
+  with_items: "{{ charts }}"
+
+- name: download value files
+  args:
+    chdir: /tmp/su_chart
+  command: "curl -O -XGET -H'X-Auth-Token: {{ auth.x_auth_token }}' {{ caas.swift_update }}/v1.0/AUTH_admin/packages/{{ item }}"
+  with_items: "{{ value_files }}"
+  ignore_errors: yes
+
+- name: upload charts via chart-repo
+  args:
+    chdir: /tmp/su_chart/
+  shell: "curl -sS -XPOST --cacert /etc/chart-repo/ssl/ca.pem --cert /etc/chart-repo/ssl/chart-repo?.pem --key /etc/chart-repo/ssl/chart-repo?-key.pem -H 'Content-Type: application/gzip' --data-binary @{{ item | basename }} {{ caas.chart_repo }}/{{ item }}"
+  with_items: "{{ charts }}"
+
+- name: helm repo update
+  shell: helm repo update default {{ caas.chart_repo }}/charts
+
+- name: authenticate on swift
+  uri:
+    url: "{{ caas.swift }}/auth/v1.0"
+    headers:
+      X_Auth_User: admin:admin
+      X_Auth_Key: "{{ swift_credential.swift_password }}"
+  register: auth_orig
+  ignore_errors: yes
+
+- name: upload value file via swift
+  args:
+    chdir: /tmp/su_chart/
+  shell: "curl -XPUT -H 'X-Auth-Token: {{ auth_orig.x_auth_token }}' -T {{ item | basename }} {{ caas.swift }}/v1.0/AUTH_admin/packages/{{ item }}"
+  with_items: "{{ value_files }}"
+  ignore_errors: yes

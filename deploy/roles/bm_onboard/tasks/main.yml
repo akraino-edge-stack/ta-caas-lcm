@@ -1,0 +1,52 @@
+---
+# Copyright 2019 Nokia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: set cloudadmin home
+  set_fact:
+    home: "/home/{{ users.admin_user_name }}/"
+
+- name: find app images
+  find:
+    paths: "{{ home }}"
+    patterns: '{{app_image_name}}*'
+  register: app_image_properties
+
+- fail:
+    msg: "There is no app image in {{ home }} folder"
+  when: app_image_properties.files == []
+
+- name: get app image extension
+  shell: "qemu-img info {{ app_image_properties.files[0].path }} | grep \"file format:\" | cut -d\" \" -f3"
+  register: app_image_format
+
+- name: convert image if needed
+  shell: "qemu-img convert -f {{ app_image_format.stdout }} -O raw {{ app_image_properties.files[0].path }} {{ app_image_properties.files[0].path }}.raw"
+  when: app_image_format.stdout != "raw"
+
+- name: Run existing SU ansible to onboard Swift image content to deployed Swift workspace
+  shell: '/usr/bin/ansible-playbook -i {{ lcm_path }}/deploy/inventory {{ lcm_path }}/su/su_prepare_playbook.yml -e "swift_image_path={{ app_image_properties.files[0].path }}.raw"'
+
+- name: find app images
+  find:
+    paths: "{{ home }}"
+    patterns: "{{ app_image_properties.files[0].path | basename }}*"
+  register: files_to_delete
+
+- name: delete app images
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ files_to_delete.files }}"
+

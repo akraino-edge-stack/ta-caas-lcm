@@ -1,0 +1,52 @@
+---
+# Copyright 2019 Nokia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: List docker images and tags
+  user: cloudadmin
+  hosts: "{{ groups.caas_master[0] | default('nowhere') }}"
+  connection: local
+  gather_facts: "False"
+  tasks:
+    - name: Get images
+      register: images_result
+      command: '/usr/bin/curl -sS
+        --key /etc/docker-registry/registry{{ nodeindex }}-key.pem
+        --cert /etc/docker-registry/registry{{ nodeindex }}.pem
+        {{ caas.registry }}/v2/_catalog'
+
+    - name: Get tags from image names
+      register: tags_result
+      command: '/usr/bin/curl -sS
+        --key /etc/docker-registry/registry{{ nodeindex }}-key.pem
+        --cert /etc/docker-registry/registry{{ nodeindex }}.pem
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json"
+        {{ caas.registry }}/v2/{{ item }}/tags/list'
+      with_items:
+        - "{{ (images_result.stdout|from_json).repositories }}"
+
+    - name: List of image names and tags
+      set_fact:
+        image_names_and_tags: {}
+
+    - name: Create images names and tags dictionary
+      set_fact:
+        image_names_and_tags: "{{ image_names_and_tags|combine( {(item.stdout|from_json).name: (item.stdout|from_json).tags} ) }}"
+      with_items:
+        - "{{ tags_result.results }}"
+
+    - name: Create a json from list of docker images and tags
+      template:
+        src: "return_value_list_docker_images.j2"
+        dest: "/tmp/return_value_list_docker_images.json"

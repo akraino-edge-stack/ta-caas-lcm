@@ -1,0 +1,47 @@
+---
+# Copyright 2019 Nokia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: get the properties of the image:tag manifest
+  shell: "curl -i -H'Accept: application/vnd.docker.distribution.manifest.v2+json' {{ registry }}/v2/{{ image_name }}/manifests/{{ image_tag }}"
+  register: result
+
+- fail:
+    msg: "{{ image_name }}/manifests/{{ image_tag }} manifest not found!"
+  when: ( result.stdout.find("MANIFEST_UNKNOWN") != -1)
+
+- name: get the properties of the image:tag manifest
+  shell: "echo '{{ result.stdout }}' > /tmp/{{ image_name|replace('/', '_') }}_{{ image_tag }}.manifest"
+
+- name: get the digest property
+  shell: grep Docker-Content-Digest /tmp/{{ image_name|replace('/', '_') }}_{{ image_tag }}.manifest | awk -F" " '{print $2}'
+  register: Docker_Content_Digest
+
+- name: delete the manifest using the digest property
+  shell: "curl -XDELETE -H'Accept: application/vnd.docker.distribution.manifest.v2+json' {{ registry }}/v2/{{ image_name }}/manifests/{{ Docker_Content_Digest.stdout }}"
+
+- name: get a registry pod id
+  shell: kubectl get pods -n kube-system | grep registry | grep Running | head -n 1 | awk -F" " '{print $1}'
+  register: registry_pod_id
+
+- fail:
+    msg: "failure: no registry pod running"
+  when: ( registry_pod_id.stdout == "" )
+
+- name: get the registry config file
+  shell: kubectl exec {{ registry_pod_id.stdout }} -c registry -n kube-system -- ps -o args | grep "registry serve" | awk -F'serve ' '{print $2}'
+  register: registry_config_file
+
+- name: run the registry garbage collector
+  shell: kubectl exec {{ registry_pod_id.stdout }} -c registry -n kube-system -- /usr/bin/registry garbage-collect {{ registry_config_file.stdout }} > /tmp/{{ image_name|replace('/', '_') }}_{{ image_tag }}.gclog
