@@ -114,7 +114,7 @@
         path: /tmp/su_chart
 
     - name: Delete the registry and swift for su
-      shell: kubectl delete -f /var/lib/caas/manifests/{{item}}
+      shell: kubectl delete -f {{ manifests_directory }}/{{item}}
       with_items:
         - update_registry_service.yml
         - docker-registry-update.yml
