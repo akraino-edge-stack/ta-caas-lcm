@@ -18,10 +18,9 @@
     content: |
       #!/bin/bash
       cat <<"EOF"
-      {{ lookup('pipe', '/usr/local/bin/cmcli --ip 127.0.0.1 ansible-inventory') }}
+      {{ lookup('pipe', 'sudo find /opt/ -type f -executable -name cmcli -exec {} --ip 127.0.0.1 ansible-inventory \;') }}
       EOF
     mode: 0500
     owner: "{{ users.admin_user_name }}"
     dest: {{ lcm_path }}/deploy/inventory
-  become_user: "root"
   when: nodename | search("caas_master1")
