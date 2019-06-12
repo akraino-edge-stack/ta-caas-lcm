@@ -15,7 +15,7 @@
 
 - block:
     - name: "create vnfcs"
-      command: "/bin/kubectl create -f /var/lib/caas/manifests/{{ item }}.yml"
+      command: "/bin/kubectl create -f /var/lib/docker/manifests/infra/{{ item }}.yml"
       with_items: "{{ vnfcs }}"      
       register: out
       until: out|succeeded or (out.stderr.find('already exists') != -1)
