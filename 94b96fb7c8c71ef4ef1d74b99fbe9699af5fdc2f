@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "912bcce7_cf02e78d",
+        "filename": "su/roles/su_prepare/tasks/main.yml",
+        "patchSetId": 2
+      },
+      "lineNbr": 117,
+      "author": {
+        "id": 186
+      },
+      "writtenOn": "2019-06-13T07:51:07Z",
+      "side": 1,
+      "message": "The path is wrong, and it shouldn\u0027t be hardcoded. Use the variable from the config: https://gerrit.akraino.org/r/gitweb?p\u003dta/caas-install.git;a\u003dblob;f\u003dcm_config/caas.yaml;h\u003d75c85df89b2e1a55603991c6a06ed2ce6aa29e0e;hb\u003dHEAD#l24",
+      "range": {
+        "startLine": 117,
+        "startChar": 31,
+        "endLine": 117,
+        "endChar": 71
+      },
+      "revId": "94b96fb7c8c71ef4ef1d74b99fbe9699af5fdc2f",
+      "serverId": "4cada01b-0314-4fe0-84a1-f9ddc89863f9",
+      "unresolved": true
+    }
+  ]
+}
