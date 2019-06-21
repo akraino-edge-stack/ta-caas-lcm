@@ -1,0 +1,8 @@
+Code-Review+1: Krisztián Lengyel <krisztian.lengyel@nokia.com>
+Verified+1: Akraino Jobbuilder <collab-it+akraino-jobbuilder@linuxfoundation.org>
+Code-Review+2: Balint Varga <balint.varga@nokia.com>
+Submitted-by: Balint Varga <balint.varga@nokia.com>
+Submitted-at: Fri, 21 Jun 2019 10:46:59 +0000
+Reviewed-on: https://gerrit.akraino.org/r/c/ta/caas-lcm/+/1019
+Project: ta/caas-lcm
+Branch: refs/heads/master
