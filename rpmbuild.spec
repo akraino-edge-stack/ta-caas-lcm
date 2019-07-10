@@ -15,11 +15,10 @@
 %define COMPONENT lcm
 %define RPM_NAME caas-%{COMPONENT}
 %define RPM_MAJOR_VERSION 1.0.0
-%define RPM_MINOR_VERSION 6
+%define RPM_MINOR_VERSION 7
 %define IMAGE_TAG %{RPM_MAJOR_VERSION}-%{RPM_MINOR_VERSION}
-%define LCM_PATH /opt/caas_lcm
-%define DEPLOY_PATH %{LCM_PATH}/deploy
-%define SU_PATH %{LCM_PATH}/su
+%define DEPLOY_PATH %{_lcm_path}/deploy
+%define SU_PATH %{_lcm_path}/su
 
 Name:           %{RPM_NAME}
 Version:        %{RPM_MAJOR_VERSION}
@@ -54,13 +53,13 @@ mkdir -p %{buildroot}/%{_roles_path}/
 rsync -av ansible/roles/pre_config_lcm %{buildroot}/%{_roles_path}/
 
 # ------- set lcm path inside deploy
-sed -i 's|{{ lcm_path }}|%{LCM_PATH}|g' %{buildroot}/%{DEPLOY_PATH}/roles/bm_onboard/tasks/main.yml
-sed -i 's|{{ lcm_path }}|%{LCM_PATH}|g' %{buildroot}/%{DEPLOY_PATH}/roles/list_application_deployments/tasks/main.yml
-sed -i 's|{{ lcm_path }}|%{LCM_PATH}|g' %{buildroot}/%{DEPLOY_PATH}/roles/list_application_packages/tasks/main.yml
-sed -i 's|{{ lcm_path }}|%{LCM_PATH}|g' %{buildroot}/%{DEPLOY_PATH}/roles/list_docker_images/tasks/main.yml
+sed -i 's|{{ lcm_path }}|%{_lcm_path}|g' %{buildroot}/%{DEPLOY_PATH}/roles/bm_onboard/tasks/main.yml
+sed -i 's|{{ lcm_path }}|%{_lcm_path}|g' %{buildroot}/%{DEPLOY_PATH}/roles/list_application_deployments/tasks/main.yml
+sed -i 's|{{ lcm_path }}|%{_lcm_path}|g' %{buildroot}/%{DEPLOY_PATH}/roles/list_application_packages/tasks/main.yml
+sed -i 's|{{ lcm_path }}|%{_lcm_path}|g' %{buildroot}/%{DEPLOY_PATH}/roles/list_docker_images/tasks/main.yml
 sed -i 's|{{ caas_manifest_path }}|%{_caas_manifest_path}|g' %{buildroot}/%{DEPLOY_PATH}/group_vars/controller-1.caas_master/params.yml
 # ------- set lcm path inside roles
-sed -i 's|{{ lcm_path }}|%{LCM_PATH}|g' %{buildroot}/%{_roles_path}/pre_config_lcm/tasks/main.yml
+sed -i 's|{{ lcm_path }}|%{_lcm_path}|g' %{buildroot}/%{_roles_path}/pre_config_lcm/tasks/main.yml
 # -------
 
 %files
