@@ -19,6 +19,5 @@ use_local_versions: false
 cbam: false
 helm_install_set: ""
 
-swift_admin_path: "/etc/swift/usr/admin"
 image_versions_path: "{{ caas_manifest_path }}"
 manifest_path: "{{ use_local_manifest|bool | ternary('manifests', '/tmp') }}"

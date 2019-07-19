@@ -13,16 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: fetch files from server which contains the necessary variables
-  fetch:
-    src: /etc/swift/usr/admin/admin.yml
-    dest: /tmp/
-    flat: yes
-
-- name: register infos for swift_auth
-  set_fact:
-    swift_credential: "{{ lookup('file', '/tmp/admin.yml') | from_yaml }}"
-
 - name: pause to wait for swift-update to be ready
   pause:
     minutes: 1
@@ -32,7 +22,7 @@
     url: "{{ caas.swift_update }}/auth/v1.0"
     headers:
       X_Auth_User: admin:admin
-      X_Auth_Key: "{{ swift_credential.swift_password }}"
+      X_Auth_Key: "{{ caas.swift_credential.password }}"
   register: auth
 
 - name: get packages
@@ -84,7 +74,7 @@
     url: "{{ caas.swift }}/auth/v1.0"
     headers:
       X_Auth_User: admin:admin
-      X_Auth_Key: "{{ swift_credential.swift_password }}"
+      X_Auth_Key: "{{ caas.swift_credential.password }}"
   register: auth_orig
   ignore_errors: yes
 
