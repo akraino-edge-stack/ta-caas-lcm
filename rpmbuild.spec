@@ -15,7 +15,7 @@
 %define COMPONENT lcm
 %define RPM_NAME caas-%{COMPONENT}
 %define RPM_MAJOR_VERSION 1.0.0
-%define RPM_MINOR_VERSION 7
+%define RPM_MINOR_VERSION 8
 %define IMAGE_TAG %{RPM_MAJOR_VERSION}-%{RPM_MINOR_VERSION}
 %define DEPLOY_PATH %{_caas_lcm_path}/deploy
 %define SU_PATH %{_caas_lcm_path}/su
