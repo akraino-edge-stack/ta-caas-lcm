@@ -29,6 +29,27 @@
   become: true
 
 - block:
+    - name: Compose the device path of swift volume on Openstack
+      set_fact:
+        swift_dev: "/dev/disk/by-id/virtio-{{ swift_volume }}"
+
+    - name: Run what_is_the_filesystem.yml
+      include_role:
+        name: common_tasks
+        tasks_from: what_is_the_filesystem.yml
+      vars:
+        device: "{{swift_dev}}"
+
+    - name: Mount the device
+      mount:
+        name: /srv/node/swift-update/
+        src: "{{swift_dev}}"
+        fstype: "{{ filesystem_type.stdout | lower | default('ext4') }}"
+        state: mounted
+      become: true
+  when: swift_volume is defined and swift_volume  != ""
+  
+- block:
     - name: Compose the device path of swift volume on BareMetal
       set_fact:
         swift_dev: "{{ swift_image_path }}"
