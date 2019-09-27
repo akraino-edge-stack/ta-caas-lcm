@@ -25,7 +25,7 @@ Version:        %{RPM_MAJOR_VERSION}
 Release:        %{RPM_MINOR_VERSION}%{?dist}
 Summary:        Containers as a Service Life Cycle Managemnet workflows
 License:        %{_platform_license}
-BuildArch:      x86_64
+BuildArch:      %{_arch}
 Vendor:         %{_platform_vendor}
 Source0:        %{name}-%{version}.tar.gz
 
